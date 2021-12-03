@@ -13,6 +13,11 @@ on:
 env:
   REGISTRY_NAME: githubtestingreg.azurecr.io
   APP_NAME: spring-app
+  CLUSTER_NAME: my-kc
+  CLUSTER_RESOURCE_GROUP: my-first-rg
+  NAMESPACE: fast-track-istio
+  SECRET: akspullsecret
+  IMG_TAG: v1
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -54,4 +59,37 @@ jobs:
         run: | 
           docker build . --file Dockerfile --tag ${{ env.REGISTRY_NAME }}/${{ env.APP_NAME }}:${{ github.sha }}
           docker push  ${{ env.REGISTRY_NAME }}/${{ env.APP_NAME }}:${{ github.sha }}
+       
+      - name: Set the target Azure Kubernetes Service (AKS) cluster
+        uses: azure/aks-set-context@v1
+        with:
+          creds: '${{ secrets.AZURE_CREDENTIALS }}'
+          cluster-name: ${{ env.CLUSTER_NAME }}
+          resource-group: ${{ env.CLUSTER_RESOURCE_GROUP }}
+          
+     # Create namespace if doesn't exist
+      - run: |
+          kubectl create namespace ${{ env.NAMESPACE }} --dry-run -o json | kubectl apply -f -
+          
+    # Create image pull secret for ACR
+      - uses: azure/k8s-create-secret@v1
+        with:
+          container-registry-url: ${{ env.REGISTRY_NAME }}
+          container-registry-username: ${{ steps.myGetSecretAction.outputs.REGISTRY-USERNAME }} 
+          container-registry-password: ${{ steps.myGetSecretAction.outputs.REGISTRY-PASSWORD }} 
+          secret-name: ${{ env.SECRET }}
+          namespace: ${{ env.NAMESPACE }}
+          force: true
+          
+    # Deploy app to AKS
+      - uses: azure/k8s-deploy@v1
+        with:
+          manifests: |
+            Deployment.yml
+          images: | 
+            githubtestingreg.azurecr.io/spring-app:${{ github.sha }}
+          imagepullsecrets: |
+            ${{ env.SECRET }}
+          namespace: ${{ env.NAMESPACE }}      
+     
         
