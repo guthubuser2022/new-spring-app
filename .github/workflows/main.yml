@@ -15,7 +15,7 @@ env:
   APP_NAME: spring-app
   CLUSTER_NAME: my-kc
   CLUSTER_RESOURCE_GROUP: my-first-rg
-  NAMESPACE: fast-track-istio
+  NAMESPACE: spring-java-apps
   SECRET: akspullsecret
   IMG_TAG: v1
 
