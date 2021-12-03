@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spring-java-apps
+  labels:
+    istio-injection: enabled
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: space-management
+  namespace: spring-java-apps
+  labels:
+    app: space-management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: space-management
+  template:
+    metadata:
+      labels:
+        app: space-management
+    spec:
+      containers:
+        - name: space-management
+          image: githubtestingreg.azurecr.io/spring-app
+          ports:
+            - containerPort: 80
+            
+          resources:
+            limits:
+              cpu: "200m"
+              memory: 200Mi
+            requests:
+              cpu: "100m"
+              memory: 100Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: space-management
+  namespace: spring-java-apps
+  labels:
+    app: space-management
+spec:
+  ports:
+  - port: 8080
+    targetPort: 80
+  selector:
+    app: space-management
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: space-management-gateway
+  namespace: spring-java-apps
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http-web
+        protocol: HTTP
+      hosts:
+        - "*"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: space-management-vservice
+  namespace: spring-java-apps
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - space-management-gateway
+  http:
+    - route:
+        - destination:
+            host: space-management
+            port:
+              number: 8080
